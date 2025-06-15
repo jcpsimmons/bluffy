@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import React, { useEffect, useRef, useState } from 'react';
 
 const ForceGraph = ({ data, width = 800, height = 600 }) => {
   const svgRef = useRef();
   const [selectedNode, setSelectedNode] = useState(null);
+  const [currentZoom, setCurrentZoom] = useState(1);
 
   useEffect(() => {
     if (!data || !data.nodes || !data.links) return;
@@ -13,9 +14,12 @@ const ForceGraph = ({ data, width = 800, height = 600 }) => {
 
     // Create zoom behavior
     const zoom = d3.zoom()
-      .scaleExtent([0.1, 10])
+      .scaleExtent([0.05, 8])
       .on("zoom", (event) => {
         container.attr("transform", event.transform);
+        setCurrentZoom(event.transform.k);
+        // Update node sizes immediately on zoom
+        node.attr("r", d => Math.max(12, 15 / Math.sqrt(event.transform.k)));
       });
 
     // Apply zoom to SVG
@@ -37,9 +41,9 @@ const ForceGraph = ({ data, width = 800, height = 600 }) => {
       .selectAll("line")
       .data(data.links)
       .enter().append("line")
-      .attr("stroke", "#999")
-      .attr("stroke-opacity", d => d.similarity * 0.8 + 0.2)
-      .attr("stroke-width", d => d.similarity * 3 + 1);
+      .attr("stroke", "#475569")
+      .attr("stroke-opacity", d => d.similarity * 0.6 + 0.3)
+      .attr("stroke-width", d => d.similarity * 2 + 0.5);
 
     // Create nodes
     const node = container.append("g")
@@ -47,9 +51,12 @@ const ForceGraph = ({ data, width = 800, height = 600 }) => {
       .selectAll("circle")
       .data(data.nodes)
       .enter().append("circle")
-      .attr("r", 8)
-      .attr("fill", d => d3.schemeCategory10[d.index % 10])
-      .attr("stroke", "#fff")
+      .attr("r", 10)
+      .attr("fill", d => {
+        const colors = ['#3b82f6', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#84cc16'];
+        return colors[d.index % colors.length];
+      })
+      .attr("stroke", "#1a1a2e")
       .attr("stroke-width", 2)
       .style("cursor", "pointer")
       .call(d3.drag()
@@ -61,7 +68,8 @@ const ForceGraph = ({ data, width = 800, height = 600 }) => {
         setSelectedNode(d);
       })
       .on("mouseover", function(event, d) {
-        d3.select(this).attr("r", 12);
+        d3.select(this).attr("r", Math.max(16, 18 / Math.sqrt(currentZoom)));
+        console.log(d)
         
         // Show tooltip
         const tooltip = container.append("g")
@@ -71,22 +79,24 @@ const ForceGraph = ({ data, width = 800, height = 600 }) => {
         const text = tooltip.append("text")
           .attr("class", "tooltip-text")
           .style("font-size", "12px")
-          .style("fill", "black")
-          .style("background", "white")
-          .text(d.text.substring(0, 50) + (d.text.length > 50 ? "..." : ""));
+          .style("fill", "#e2e8f0")
+          .style("font-weight", "500")
+          .text(d.summary || d.text.substring(0, 40) + (d.text.length > 40 ? "..." : ""));
         
         const bbox = text.node().getBBox();
         tooltip.insert("rect", "text")
-          .attr("x", bbox.x - 5)
-          .attr("y", bbox.y - 2)
-          .attr("width", bbox.width + 10)
-          .attr("height", bbox.height + 4)
-          .style("fill", "white")
-          .style("stroke", "black")
-          .style("stroke-width", 1);
+          .attr("x", bbox.x - 8)
+          .attr("y", bbox.y - 4)
+          .attr("width", bbox.width + 16)
+          .attr("height", bbox.height + 8)
+          .attr("rx", 6)
+          .style("fill", "#1a1a2e")
+          .style("stroke", "#2a2a54")
+          .style("stroke-width", 1)
+          .style("filter", "drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3))");
       })
       .on("mouseout", function(event, d) {
-        d3.select(this).attr("r", 8);
+        d3.select(this).attr("r", Math.max(12, 15 / Math.sqrt(currentZoom)));
         container.select("#tooltip").remove();
       });
 
@@ -97,10 +107,12 @@ const ForceGraph = ({ data, width = 800, height = 600 }) => {
       .data(data.nodes)
       .enter().append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", 25)
-      .style("font-size", "10px")
-      .style("fill", "black")
-      .text(d => `Chunk ${d.index}`);
+      .attr("dy", 28)
+      .style("font-size", "11px")
+      .style("font-weight", "500")
+      .style("fill", "#94a3b8")
+      .style("pointer-events", "none")
+      .text(d => d.summary || `C${d.index}`);
 
     // Update positions on simulation tick
     simulation.on("tick", () => {
@@ -112,7 +124,8 @@ const ForceGraph = ({ data, width = 800, height = 600 }) => {
 
       node
         .attr("cx", d => d.x)
-        .attr("cy", d => d.y);
+        .attr("cy", d => d.y)
+        .attr("r", d => Math.max(12, 15 / Math.sqrt(currentZoom)));
 
       label
         .attr("x", d => d.x)
@@ -159,73 +172,89 @@ const ForceGraph = ({ data, width = 800, height = 600 }) => {
   };
 
   return (
-    <div style={{ display: 'flex', gap: '20px' }}>
-      <div style={{ position: 'relative' }}>
+    <div className="flex gap-6 h-full flex-col">
+      <div className="relative flex-1">
         <svg 
           ref={svgRef} 
           width={width} 
           height={height}
-          style={{ border: '1px solid #ccc', background: '#fafafa', cursor: 'grab' }}
+          className="bg-dark-surface border border-dark-border rounded-lg cursor-grab"
         />
-        <div style={{ 
-          position: 'absolute', 
-          top: '10px', 
-          right: '10px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '5px'
-        }}>
+        
+        {/* Controls Overlay */}
+        <div className="absolute top-4 right-4 flex flex-col gap-3">
           <button 
             onClick={handleResetZoom}
-            style={{ 
-              padding: '5px 10px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              backgroundColor: 'white',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
+            className="btn-secondary text-xs shadow-lg"
           >
+            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
             Reset Zoom
           </button>
-          <div style={{
-            padding: '5px',
-            backgroundColor: 'rgba(255,255,255,0.9)',
-            borderRadius: '4px',
-            fontSize: '10px',
-            border: '1px solid #ccc'
-          }}>
-            <div>🖱️ Drag to pan</div>
-            <div>🔍 Scroll to zoom</div>
-            <div>🎯 Drag nodes</div>
+          
+          <div className="glass p-3 rounded-lg text-xs text-dark-muted space-y-1">
+            <div className="flex items-center space-x-2">
+              <span>🖱️</span>
+              <span>Drag to pan</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span>🔍</span>
+              <span>Scroll to zoom</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span>🎯</span>
+              <span>Drag nodes</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span>👆</span>
+              <span>Click for details</span>
+            </div>
           </div>
         </div>
       </div>
       
       {selectedNode && (
-        <div style={{ 
-          width: '300px', 
-          padding: '20px', 
-          border: '1px solid #ccc',
-          borderRadius: '8px',
-          backgroundColor: '#f9f9f9'
-        }}>
-          <h3>Chunk {selectedNode.index}</h3>
-          <p style={{ fontSize: '14px', lineHeight: '1.4' }}>
-            {selectedNode.text}
-          </p>
-          <button 
-            onClick={() => setSelectedNode(null)}
-            style={{ 
-              marginTop: '10px',
-              padding: '5px 10px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Close
-          </button>
+        <div className="card w-full">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-dark-primary to-dark-secondary rounded-lg flex items-center justify-center text-white text-sm font-bold">
+                  {selectedNode.index}
+                </div>
+                <h3 className="text-lg font-semibold text-dark-text">
+                {selectedNode.summary}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setSelectedNode(null)}
+                className="p-1 hover:bg-dark-hover rounded-md transition-colors"
+              >
+                <svg className="w-5 h-5 text-dark-muted" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-dark-muted uppercase tracking-wide">
+                  Content
+                </label>
+                <div className="mt-1 p-3 bg-dark-surface rounded-lg border border-dark-border">
+                  <p className="text-sm text-dark-text leading-relaxed">
+                    {selectedNode.text}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-between text-xs text-dark-muted">
+                <span>Characters: {selectedNode.text.length}</span>
+                <span>Words: {selectedNode.text.split(' ').length}</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

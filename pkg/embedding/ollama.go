@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -106,7 +107,7 @@ func (c *OllamaClient) GetEmbedding(text string) ([]float64, error) {
 }
 
 func (c *OllamaClient) GetSummary(text string) (string, error) {
-	prompt := fmt.Sprintf("Summarize this text in exactly 1-5 words (no punctuation, just the key topic):\n\n%s", text)
+	prompt := fmt.Sprintf("Please provide only a 1-5 word summary of this text. Do not include any reasoning, explanations, or thinking process. Limit your response to a maximum of 5 words. Just respond with the key topic:\n\n%s \n\n /no_think", text)
 
 	reqBody := generateRequest{
 		Model:  "qwen3:0.6b",
@@ -136,14 +137,49 @@ func (c *OllamaClient) GetSummary(text string) (string, error) {
 		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// Clean up the response - remove extra whitespace and limit to 5 words
-	summary := strings.TrimSpace(result.Response)
+	// Clean up the response - remove thinking tags and clean text
+	summary := cleanSummaryResponse(result.Response)
 	words := strings.Fields(summary)
-	if len(words) > 5 {
-		words = words[:5]
+	if len(words) > 10 {
+		words = words[:10]
 	}
 
 	return strings.Join(words, " "), nil
+}
+
+func cleanSummaryResponse(response string) string {
+	// Remove <think> tags and their content
+	thinkRegex := regexp.MustCompile(`(?s)<think>.*?</think>`)
+	cleaned := thinkRegex.ReplaceAllString(response, "")
+
+	// Remove any remaining XML-like tags
+	tagRegex := regexp.MustCompile(`<[^>]*>`)
+	cleaned = tagRegex.ReplaceAllString(cleaned, "")
+
+	// Clean up whitespace and common prefixes
+	cleaned = strings.TrimSpace(cleaned)
+
+	// Remove common response prefixes
+	prefixes := []string{
+		"Summary:", "Topic:", "Key words:", "Keywords:",
+		"The text is about", "This text discusses", "The topic is",
+		"Main topic:", "Subject:", "Theme:",
+	}
+
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(strings.ToLower(cleaned), strings.ToLower(prefix)) {
+			cleaned = strings.TrimSpace(cleaned[len(prefix):])
+			break
+		}
+	}
+
+	// Remove punctuation from the end
+	punctuation := []string{".", "!", "?", ":", ";", ","}
+	for _, punct := range punctuation {
+		cleaned = strings.TrimSuffix(cleaned, punct)
+	}
+
+	return strings.TrimSpace(cleaned)
 }
 
 func (c *OllamaClient) GetEmbeddingsConcurrent(chunks []database.TextChunk, maxWorkers int, progressCallback func(completed, total int)) ([]database.TextChunk, error) {
