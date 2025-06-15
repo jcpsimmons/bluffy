@@ -1,0 +1,7 @@
+This is the first paragraph of our sample text document. It contains some information about machine learning and how it relates to natural language processing.
+
+Here is the second paragraph that discusses embeddings in more detail. Vector embeddings are numerical representations of text that capture semantic meaning in high-dimensional space.
+
+The third paragraph explores how these embeddings can be used for various applications. Search engines, recommendation systems, and similarity detection all benefit from high-quality text embeddings.
+
+Finally, this last paragraph wraps up the discussion by mentioning the importance of choosing the right embedding model for your specific use case. Different models excel at different tasks and domains.
