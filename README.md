@@ -1,21 +1,35 @@
-# Knowledge Graph CLI
+# BLUFfy
 
-This directory contains a terminal-based CLI implementation for the knowledge graph functionality. The knowledge graph is a visualization tool that helps understand relationships between different pieces of content in the codebase.
+**BLUFfy** (bottom line up front-y) is a CLI tool for text analysis and knowledge discovery. It processes text documents by chunking them into paragraphs, generating embeddings and summaries using local AI models, calculating semantic similarities, and providing both API access and web visualization for exploring the relationships between text segments.
 
 ## Features
 
-- Terminal-based interactive graph visualization
-- Node and edge filtering based on similarity thresholds
-- Radial force adjustment for graph layout control
-- Node selection and detailed information display
-- Keyboard-based navigation and controls
+- **Text Processing**: Automatically chunks text files by paragraphs
+- **AI-Powered Analysis**: Generates embeddings and summaries using Ollama/Nomic models
+- **Similarity Analysis**: Calculates semantic relationships between all text chunks
+- **SQLite Storage**: Stores all data in a portable SQLite database
+- **REST API**: Serves data via HTTP API for integration and visualization
+- **Web Visualization**: Interactive D3.js force graph for exploring text relationships
+- **Concurrent Processing**: Multi-threaded processing for faster analysis
 
-## Implementation
+## Demo
 
-The CLI is built using:
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) for the TUI framework
-- [Lipgloss](https://github.com/charmbracelet/lipgloss) for terminal styling
-- ASCII art for graph visualization
+Here's what BLUFfy can do:
+
+![Text Analysis Demo](examples/images/demoimage1.png)
+![Visualization Demo](examples/images/demoimage2.png)
+
+## Prerequisites
+
+Before using BLUFfy, you need to have [Ollama](https://ollama.ai) installed and running:
+
+1. Install Ollama from [https://ollama.ai](https://ollama.ai)
+2. Pull the required models:
+   ```bash
+   ollama pull nomic-embed-text  # For embeddings
+   ollama pull qwen3:0.6b        # For summaries
+   ```
+3. Ensure Ollama is running: `ollama serve` (usually runs automatically)
 
 ## Data Structure
 
@@ -52,57 +66,113 @@ type GraphData struct {
 }
 ```
 
-## Usage
+## Installation
+
+### Option 1: Install from source
 
 1. Ensure you have Go 1.21 or later installed:
    ```bash
    go version
    ```
 
-2. Install the CLI:
+2. Install BLUFfy:
    ```bash
-   go install github.com/simsies/blog/cli/cmd/knowledge-graph@latest
+   go install github.com/simsies/blog/cli@latest
    ```
 
-3. Generate the embeddings data if you haven't already:
-   ```bash
-   node scripts/generate-embeddings.js
-   ```
+3. The binary will be available as `cli` in your `$GOPATH/bin` directory.
 
-4. Run the CLI:
-   ```bash
-   knowledge-graph
-   ```
+### Option 2: Build locally
 
-## Controls
-
-- **Arrow Keys**:
-  - Up/Down: Adjust radial force
-  - Left/Right: Adjust similarity threshold
-- **Q**: Quit the application
-- **Mouse**: Click nodes to select them and view details
-
-## Development
-
-To modify the graph behavior, you can adjust:
-- Force simulation parameters in the `renderGraph` function
-- Node and edge styling in the ASCII art rendering
-- Layout parameters like initial zoom and center position
-
-## Building from Source
-
-1. Clone the repository:
+1. Clone and build:
    ```bash
    git clone https://github.com/simsies/blog.git
    cd blog/cli
+   go build -o bluffy
    ```
 
-2. Build the CLI:
+## Usage
+
+BLUFfy has two main commands: `process` to analyze text files and `serve` to start the API server.
+
+### Process Text Files
+
+Analyze a text file and generate embeddings:
+
+```bash
+# Basic usage
+bluffy process -f document.txt
+
+# Specify output directory and number of workers
+bluffy process -f document.txt -o ./output -w 4
+
+# Use custom Ollama host
+bluffy process -f document.txt --ollama-host http://192.168.1.100:11434
+```
+
+This will:
+1. Chunk your text file by paragraphs
+2. Generate embeddings for each chunk using Nomic
+3. Create summaries for each chunk
+4. Calculate similarities between all chunks
+5. Store everything in a SQLite database
+
+### Start API Server
+
+Serve the processed data via REST API:
+
+```bash
+# Basic usage (serves on port 8080)
+bluffy serve document.db
+
+# Custom port
+bluffy serve document.db -p 3000
+```
+
+The API provides these endpoints:
+- `GET /api/chunks` - All text chunks with embeddings
+- `GET /api/similarities` - All similarity calculations  
+- `GET /api/graph?min_similarity=0.7` - Graph data for visualization
+
+## Web Visualization
+
+BLUFfy includes a React-based web visualizer in the `examples/visualizer/` directory that creates interactive D3.js force graphs:
+
+1. Start the API server:
    ```bash
-   go build -o knowledge-graph ./cmd/knowledge-graph
+   bluffy serve your-document.db
    ```
 
-3. Run the CLI:
+2. In another terminal, start the web app:
    ```bash
-   ./knowledge-graph
+   cd examples/visualizer
+   npm install
+   npm start
    ```
+
+3. Open http://localhost:3000 to explore your text relationships visually
+
+The visualization allows you to:
+- Adjust similarity thresholds with a slider
+- See connections between related text chunks
+- Click on nodes to view the full text
+- Drag nodes to reorganize the graph
+
+## Command Options
+
+### Process Command
+- `-f, --file`: Input text file (.txt or .md) **(required)**
+- `-o, --output`: Output directory for SQLite database (default: current directory)
+- `-w, --workers`: Number of concurrent workers (default: number of CPUs)
+- `--ollama-host`: Ollama server URL (default: http://localhost:11434)
+
+### Serve Command  
+- `-p, --port`: Server port (default: 8080)
+
+## Development
+
+BLUFfy is built with:
+- **Go 1.21+** for the CLI and API server
+- **SQLite** for data storage  
+- **Ollama** with Nomic embeddings for AI processing
+- **React + D3.js** for web visualization

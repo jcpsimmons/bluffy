@@ -1,1 +1,3 @@
-README_embeddings.db
+*.db
+.DS_store
+bluffy
