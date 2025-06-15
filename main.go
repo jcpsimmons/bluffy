@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/simsies/blog/cli/pkg/database"
 	"github.com/simsies/blog/cli/pkg/embedding"
@@ -66,17 +67,23 @@ func processFile(inputFile, outputDir string, maxWorkers int) error {
 
 	fmt.Printf("Generating embeddings with %d workers...\n", maxWorkers)
 	
-	processedChunks, err := client.GetEmbeddingsConcurrent(chunks, maxWorkers)
+	processedChunks, err := client.GetEmbeddingsConcurrent(chunks, maxWorkers, func(completed, total int) {
+		printProgressBar("Embeddings", completed, total)
+	})
 	if err != nil {
 		return fmt.Errorf("failed to generate embeddings: %w", err)
 	}
+	fmt.Println() // New line after progress bar
 
 	fmt.Printf("Generating summaries with %d workers...\n", maxWorkers)
 	
-	processedChunks, err = client.GetSummariesConcurrent(processedChunks, maxWorkers)
+	processedChunks, err = client.GetSummariesConcurrent(processedChunks, maxWorkers, func(completed, total int) {
+		printProgressBar("Summaries", completed, total)
+	})
 	if err != nil {
 		return fmt.Errorf("failed to generate summaries: %w", err)
 	}
+	fmt.Println() // New line after progress bar
 
 	fmt.Println("Storing chunks in database...")
 	
@@ -105,4 +112,15 @@ func processFile(inputFile, outputDir string, maxWorkers int) error {
 	fmt.Println("Database is ready for exploration with any SQLite browser.")
 	
 	return nil
+}
+
+func printProgressBar(prefix string, completed, total int) {
+	width := 50
+	percentage := float64(completed) / float64(total)
+	filled := int(percentage * float64(width))
+	
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+	
+	fmt.Printf("\r%s: [%s] %d/%d (%.1f%%)", 
+		prefix, bar, completed, total, percentage*100)
 }

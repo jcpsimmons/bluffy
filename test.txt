@@ -1,0 +1,7 @@
+This is a test document for checking our progress bars. It contains multiple paragraphs to see how the visual progress tracking works.
+
+The second paragraph talks about artificial intelligence and machine learning concepts. We want to see how the embedding generation progresses.
+
+Here we discuss natural language processing and text analysis techniques. This should generate interesting embeddings for similarity comparison.
+
+The final paragraph covers data visualization and user interface design principles. All these different topics should create a nice graph structure.

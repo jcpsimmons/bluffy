@@ -146,7 +146,7 @@ func (c *OllamaClient) GetSummary(text string) (string, error) {
 	return strings.Join(words, " "), nil
 }
 
-func (c *OllamaClient) GetEmbeddingsConcurrent(chunks []database.TextChunk, maxWorkers int) ([]database.TextChunk, error) {
+func (c *OllamaClient) GetEmbeddingsConcurrent(chunks []database.TextChunk, maxWorkers int, progressCallback func(completed, total int)) ([]database.TextChunk, error) {
 	if maxWorkers <= 0 {
 		maxWorkers = runtime.NumCPU()
 	}
@@ -173,11 +173,18 @@ func (c *OllamaClient) GetEmbeddingsConcurrent(chunks []database.TextChunk, maxW
 		close(results)
 	}()
 
-	// Collect results
+	// Collect results with progress tracking
 	processedChunks := make([]database.TextChunk, len(chunks))
 	var errors []error
+	completed := 0
+	total := len(chunks)
 
 	for result := range results {
+		completed++
+		if progressCallback != nil {
+			progressCallback(completed, total)
+		}
+
 		if result.Error != nil {
 			errors = append(errors, fmt.Errorf("chunk %d: %w", result.Index, result.Error))
 		} else {
@@ -192,7 +199,7 @@ func (c *OllamaClient) GetEmbeddingsConcurrent(chunks []database.TextChunk, maxW
 	return processedChunks, nil
 }
 
-func (c *OllamaClient) GetSummariesConcurrent(chunks []database.TextChunk, maxWorkers int) ([]database.TextChunk, error) {
+func (c *OllamaClient) GetSummariesConcurrent(chunks []database.TextChunk, maxWorkers int, progressCallback func(completed, total int)) ([]database.TextChunk, error) {
 	if maxWorkers <= 0 {
 		maxWorkers = runtime.NumCPU()
 	}
@@ -219,11 +226,18 @@ func (c *OllamaClient) GetSummariesConcurrent(chunks []database.TextChunk, maxWo
 		close(results)
 	}()
 
-	// Collect results
+	// Collect results with progress tracking
 	processedChunks := make([]database.TextChunk, len(chunks))
 	var errors []error
+	completed := 0
+	total := len(chunks)
 
 	for result := range results {
+		completed++
+		if progressCallback != nil {
+			progressCallback(completed, total)
+		}
+
 		if result.Error != nil {
 			errors = append(errors, fmt.Errorf("chunk %d: %w", result.Index, result.Error))
 		} else {
