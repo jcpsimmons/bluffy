@@ -107,9 +107,9 @@ func (c *OllamaClient) GetEmbedding(text string) ([]float64, error) {
 
 func (c *OllamaClient) GetSummary(text string) (string, error) {
 	prompt := fmt.Sprintf("Summarize this text in exactly 1-5 words (no punctuation, just the key topic):\n\n%s", text)
-	
+
 	reqBody := generateRequest{
-		Model:  "qwen2.5:0.5b",
+		Model:  "qwen3:0.6b",
 		Prompt: prompt,
 		Stream: false,
 	}
@@ -142,7 +142,7 @@ func (c *OllamaClient) GetSummary(text string) (string, error) {
 	if len(words) > 5 {
 		words = words[:5]
 	}
-	
+
 	return strings.Join(words, " "), nil
 }
 
