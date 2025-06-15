@@ -5,6 +5,7 @@ type TextChunk struct {
 	Text       string    `json:"text"`
 	ChunkIndex int       `json:"chunk_index"`
 	Embedding  []float64 `json:"embedding"`
+	Summary    string    `json:"summary"`
 }
 
 type ChunkSimilarity struct {

@@ -71,6 +71,13 @@ func processFile(inputFile, outputDir string, maxWorkers int) error {
 		return fmt.Errorf("failed to generate embeddings: %w", err)
 	}
 
+	fmt.Printf("Generating summaries with %d workers...\n", maxWorkers)
+	
+	processedChunks, err = client.GetSummariesConcurrent(processedChunks, maxWorkers)
+	if err != nil {
+		return fmt.Errorf("failed to generate summaries: %w", err)
+	}
+
 	fmt.Println("Storing chunks in database...")
 	
 	for i, chunk := range processedChunks {

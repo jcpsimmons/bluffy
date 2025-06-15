@@ -57,6 +57,7 @@ func (db *DB) setupTables() error {
 			text TEXT NOT NULL,
 			chunk_index INTEGER NOT NULL,
 			embedding TEXT NOT NULL,
+			summary TEXT DEFAULT '',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE TABLE IF NOT EXISTS chunk_similarities (
@@ -90,8 +91,8 @@ func (db *DB) InsertChunk(chunk *TextChunk) error {
 		return fmt.Errorf("failed to marshal embedding: %w", err)
 	}
 
-	query := `INSERT INTO text_chunks (text, chunk_index, embedding) VALUES (?, ?, ?) RETURNING id`
-	err = db.conn.QueryRow(query, chunk.Text, chunk.ChunkIndex, string(embeddingJSON)).Scan(&chunk.ID)
+	query := `INSERT INTO text_chunks (text, chunk_index, embedding, summary) VALUES (?, ?, ?, ?) RETURNING id`
+	err = db.conn.QueryRow(query, chunk.Text, chunk.ChunkIndex, string(embeddingJSON), chunk.Summary).Scan(&chunk.ID)
 	if err != nil {
 		return fmt.Errorf("failed to insert chunk: %w", err)
 	}
@@ -100,7 +101,7 @@ func (db *DB) InsertChunk(chunk *TextChunk) error {
 }
 
 func (db *DB) GetAllChunks() ([]TextChunk, error) {
-	query := `SELECT id, text, chunk_index, embedding FROM text_chunks ORDER BY chunk_index`
+	query := `SELECT id, text, chunk_index, embedding, summary FROM text_chunks ORDER BY chunk_index`
 	rows, err := db.conn.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query chunks: %w", err)
@@ -112,7 +113,7 @@ func (db *DB) GetAllChunks() ([]TextChunk, error) {
 		var chunk TextChunk
 		var embeddingJSON string
 
-		if err := rows.Scan(&chunk.ID, &chunk.Text, &chunk.ChunkIndex, &embeddingJSON); err != nil {
+		if err := rows.Scan(&chunk.ID, &chunk.Text, &chunk.ChunkIndex, &embeddingJSON, &chunk.Summary); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 
