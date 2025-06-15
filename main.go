@@ -1,41 +1,21 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"database/sql"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/simsies/blog/cli/pkg/database"
+	"github.com/simsies/blog/cli/pkg/embedding"
+	"github.com/simsies/blog/cli/pkg/similarity"
+	"github.com/simsies/blog/cli/pkg/textproc"
 	"github.com/spf13/cobra"
 )
-
-type TextChunk struct {
-	ID        int     `json:"id"`
-	Text      string  `json:"text"`
-	ChunkIndex int    `json:"chunk_index"`
-	Embedding []float64 `json:"embedding"`
-}
-
-type OllamaEmbeddingRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-}
-
-type OllamaEmbeddingResponse struct {
-	Embedding []float64 `json:"embedding"`
-}
 
 func main() {
 	var inputFile string
 	var outputDir string
+	var maxWorkers int
 
 	rootCmd := &cobra.Command{
 		Use:   "embed-cli",
@@ -52,7 +32,7 @@ func main() {
 				outputDir = "."
 			}
 			
-			if err := processFile(inputFile, outputDir); err != nil {
+			if err := processFile(inputFile, outputDir, maxWorkers); err != nil {
 				log.Fatalf("Error processing file: %v", err)
 			}
 		},
@@ -60,6 +40,7 @@ func main() {
 
 	rootCmd.Flags().StringVarP(&inputFile, "file", "f", "", "Input text file (.txt or .md)")
 	rootCmd.Flags().StringVarP(&outputDir, "output", "o", ".", "Output directory for the SQLite database")
+	rootCmd.Flags().IntVarP(&maxWorkers, "workers", "w", 0, "Maximum number of concurrent workers (0 = number of CPUs)")
 	rootCmd.MarkFlagRequired("file")
 
 	if err := rootCmd.Execute(); err != nil {
@@ -67,157 +48,54 @@ func main() {
 	}
 }
 
-func processFile(inputFile, outputDir string) error {
-	chunks, err := chunkTextByParagraphs(inputFile)
+func processFile(inputFile, outputDir string, maxWorkers int) error {
+	chunks, err := textproc.ChunkTextByParagraphs(inputFile)
 	if err != nil {
 		return fmt.Errorf("failed to chunk text: %w", err)
 	}
 
 	fmt.Printf("Processed %d text chunks\n", len(chunks))
 
-	dbPath, err := createOutputDatabase(inputFile, outputDir)
+	db, err := database.NewDB(inputFile, outputDir)
 	if err != nil {
 		return fmt.Errorf("failed to create database: %w", err)
 	}
-
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
 	defer db.Close()
 
-	if err := setupDatabase(db); err != nil {
-		return fmt.Errorf("failed to setup database: %w", err)
+	client := embedding.NewOllamaClient("", "")
+
+	fmt.Printf("Generating embeddings with %d workers...\n", maxWorkers)
+	
+	processedChunks, err := client.GetEmbeddingsConcurrent(chunks, maxWorkers)
+	if err != nil {
+		return fmt.Errorf("failed to generate embeddings: %w", err)
 	}
 
-	for i, chunk := range chunks {
-		fmt.Printf("Processing chunk %d/%d...\n", i+1, len(chunks))
-		
-		embedding, err := getEmbedding(chunk.Text)
-		if err != nil {
-			return fmt.Errorf("failed to get embedding for chunk %d: %w", i, err)
-		}
-
-		chunk.Embedding = embedding
-
-		if err := insertChunk(db, chunk); err != nil {
+	fmt.Println("Storing chunks in database...")
+	
+	for i, chunk := range processedChunks {
+		if err := db.InsertChunk(&chunk); err != nil {
 			return fmt.Errorf("failed to insert chunk %d: %w", i, err)
 		}
+		processedChunks[i] = chunk
 	}
 
-	fmt.Printf("Successfully processed all chunks and stored embeddings in database: %s\n", dbPath)
+	fmt.Println("Calculating similarities between all chunks...")
+	
+	similarities, err := similarity.CalculateAllSimilarities(processedChunks)
+	if err != nil {
+		return fmt.Errorf("failed to calculate similarities: %w", err)
+	}
+
+	fmt.Printf("Storing %d similarity calculations...\n", len(similarities))
+	
+	if err := db.BatchInsertSimilarities(similarities); err != nil {
+		return fmt.Errorf("failed to store similarities: %w", err)
+	}
+
+	fmt.Printf("Successfully processed all chunks and stored embeddings in database: %s\n", db.Path())
+	fmt.Printf("Calculated and stored %d chunk similarities\n", len(similarities))
 	fmt.Println("Database is ready for exploration with any SQLite browser.")
 	
 	return nil
-}
-
-func chunkTextByParagraphs(filename string) ([]TextChunk, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var chunks []TextChunk
-	var currentChunk strings.Builder
-	chunkIndex := 0
-	
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		
-		if line == "" {
-			if currentChunk.Len() > 0 {
-				chunks = append(chunks, TextChunk{
-					Text:       strings.TrimSpace(currentChunk.String()),
-					ChunkIndex: chunkIndex,
-				})
-				currentChunk.Reset()
-				chunkIndex++
-			}
-		} else {
-			if currentChunk.Len() > 0 {
-				currentChunk.WriteString(" ")
-			}
-			currentChunk.WriteString(line)
-		}
-	}
-
-	if currentChunk.Len() > 0 {
-		chunks = append(chunks, TextChunk{
-			Text:       strings.TrimSpace(currentChunk.String()),
-			ChunkIndex: chunkIndex,
-		})
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return chunks, nil
-}
-
-func getEmbedding(text string) ([]float64, error) {
-	reqBody := OllamaEmbeddingRequest{
-		Model:  "nomic-embed-text",
-		Prompt: text,
-	}
-
-	jsonData, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := http.Post("http://localhost:11434/api/embeddings", "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call Ollama API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Ollama API returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var result OllamaEmbeddingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return result.Embedding, nil
-}
-
-func createOutputDatabase(inputFile, outputDir string) (string, error) {
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create output directory: %w", err)
-	}
-	
-	baseName := strings.TrimSuffix(filepath.Base(inputFile), filepath.Ext(inputFile))
-	dbPath := filepath.Join(outputDir, fmt.Sprintf("%s_embeddings.db", baseName))
-	return dbPath, nil
-}
-
-func setupDatabase(db *sql.DB) error {
-	query := `
-	CREATE TABLE IF NOT EXISTS text_chunks (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		text TEXT NOT NULL,
-		chunk_index INTEGER NOT NULL,
-		embedding TEXT NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	)`
-
-	_, err := db.Exec(query)
-	return err
-}
-
-func insertChunk(db *sql.DB, chunk TextChunk) error {
-	embeddingJSON, err := json.Marshal(chunk.Embedding)
-	if err != nil {
-		return err
-	}
-
-	query := `INSERT INTO text_chunks (text, chunk_index, embedding) VALUES (?, ?, ?)`
-	_, err = db.Exec(query, chunk.Text, chunk.ChunkIndex, string(embeddingJSON))
-	return err
 }
