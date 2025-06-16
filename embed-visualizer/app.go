@@ -53,13 +53,16 @@ func (a *App) ProcessFile(filePath, outputDir, ollamaHost string, maxWorkers int
 	// Generate embeddings
 	client := embedding.NewOllamaClient(ollamaHost, "nomic-embed-text")
 	
-	// Progress callback for embeddings
+	// Progress callback for embeddings - capture context
+	ctx := a.ctx
 	embeddingProgress := func(completed, total int) {
-		runtime.EventsEmit(a.ctx, "embedding-progress", map[string]interface{}{
-			"completed": completed,
-			"total":     total,
-			"message":   fmt.Sprintf("Generating embeddings: %d/%d", completed, total),
-		})
+		go func() {
+			runtime.EventsEmit(ctx, "embedding-progress", map[string]interface{}{
+				"completed": completed,
+				"total":     total,
+				"message":   fmt.Sprintf("Generating embeddings: %d/%d", completed, total),
+			})
+		}()
 	}
 
 	processedChunks, err := client.GetEmbeddingsConcurrent(textChunks, maxWorkers, embeddingProgress)
@@ -69,11 +72,13 @@ func (a *App) ProcessFile(filePath, outputDir, ollamaHost string, maxWorkers int
 
 	// Generate summaries
 	summaryProgress := func(completed, total int) {
-		runtime.EventsEmit(a.ctx, "summary-progress", map[string]interface{}{
-			"completed": completed,
-			"total":     total,
-			"message":   fmt.Sprintf("Generating summaries: %d/%d", completed, total),
-		})
+		go func() {
+			runtime.EventsEmit(ctx, "summary-progress", map[string]interface{}{
+				"completed": completed,
+				"total":     total,
+				"message":   fmt.Sprintf("Generating summaries: %d/%d", completed, total),
+			})
+		}()
 	}
 
 	processedChunks, err = client.GetSummariesConcurrent(processedChunks, maxWorkers, summaryProgress)
@@ -89,9 +94,11 @@ func (a *App) ProcessFile(filePath, outputDir, ollamaHost string, maxWorkers int
 	}
 
 	// Calculate similarities
-	runtime.EventsEmit(a.ctx, "similarity-progress", map[string]interface{}{
-		"message": "Calculating similarities...",
-	})
+	go func() {
+		runtime.EventsEmit(ctx, "similarity-progress", map[string]interface{}{
+			"message": "Calculating similarities...",
+		})
+	}()
 
 	if err := db.CalculateSimilarities(); err != nil {
 		return fmt.Errorf("failed to calculate similarities: %w", err)

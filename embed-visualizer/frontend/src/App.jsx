@@ -23,18 +23,22 @@ function App() {
   useEffect(() => {
     // Set up event listeners immediately when component mounts
     const embeddingProgressListener = (data) => {
+      console.log('Embedding progress:', data);
       setProgress(`Generating embeddings: ${data.completed}/${data.total}`);
     };
 
     const summaryProgressListener = (data) => {
+      console.log('Summary progress:', data);
       setProgress(`Generating summaries: ${data.completed}/${data.total}`);
     };
 
     const similarityProgressListener = (data) => {
+      console.log('Similarity progress:', data);
       setProgress(data.message);
     };
 
     const processingCompleteListener = (data) => {
+      console.log('Processing complete:', data);
       setProgress('');
       setLoading(false);
       setDbPath(data.dbPath);
@@ -43,10 +47,12 @@ function App() {
     };
 
     // Register event listeners
+    console.log('Setting up event listeners...');
     EventsOn('embedding-progress', embeddingProgressListener);
     EventsOn('summary-progress', summaryProgressListener);
     EventsOn('similarity-progress', similarityProgressListener);
     EventsOn('processing-complete', processingCompleteListener);
+    console.log('Event listeners registered');
 
     // Cleanup event listeners on unmount
     return () => {
@@ -91,7 +97,10 @@ function App() {
 
     setLoading(true);
     setError(null);
-    setProgress('Starting processing...');
+    setProgress('Preparing to process...');
+
+    // Small delay to ensure event listeners are ready
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       await ProcessFile(filePath, outputDir, ollamaHost, maxWorkers);
