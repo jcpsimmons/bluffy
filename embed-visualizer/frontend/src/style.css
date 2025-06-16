@@ -1,0 +1,93 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@layer base {
+  * {
+    @apply border-dark-border;
+  }
+  
+  body {
+    @apply bg-dark-bg text-dark-text font-sans antialiased;
+    margin: 0;
+  }
+  
+  code {
+    @apply font-mono;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-dark-surface/80 backdrop-blur-sm border border-dark-border/50;
+  }
+  
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-dark-primary/50;
+  }
+  
+  .btn-primary {
+    @apply btn bg-dark-primary hover:bg-dark-primary/80 text-white;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-dark-surface hover:bg-dark-hover text-dark-text border border-dark-border;
+  }
+  
+  .input {
+    @apply bg-dark-surface border border-dark-border rounded-lg px-3 py-2 text-dark-text placeholder-dark-muted focus:outline-none focus:ring-2 focus:ring-dark-primary/50 focus:border-dark-primary/50 transition-all duration-200;
+  }
+  
+  .card {
+    @apply bg-dark-card border border-dark-border rounded-xl shadow-lg;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-primary {
+    @apply badge bg-dark-primary/20 text-dark-primary border border-dark-primary/30;
+  }
+  
+  .badge-secondary {
+    @apply badge bg-dark-surface text-dark-muted border border-dark-border;
+  }
+  
+  .slider {
+    @apply bg-dark-surface;
+    background: #475569;
+    border: 1px solid #64748b;
+  }
+  
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 2px solid #1a1a2e;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+  }
+  
+  .slider::-webkit-slider-thumb:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+  }
+  
+  .slider::-moz-range-thumb {
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 2px solid #1a1a2e;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+#app {
+    height: 100vh;
+}
