@@ -71,13 +71,15 @@ type GraphData struct {
 ### Option 1: Install from source
 
 1. Ensure you have Go 1.21 or later installed:
+
    ```bash
    go version
    ```
 
 2. Install BLUFfy:
+
    ```bash
-   go install github.com/simsies/blog/cli@latest
+   go install github.com/jcpsimmons/bluffy@latest
    ```
 
 3. The binary will be available as `cli` in your `$GOPATH/bin` directory.
@@ -86,8 +88,7 @@ type GraphData struct {
 
 1. Clone and build:
    ```bash
-   git clone https://github.com/simsies/blog.git
-   cd blog/cli
+   git clone https://github.com/jcpsimmons/bluffy.git
    go build -o bluffy
    ```
 
@@ -111,6 +112,7 @@ bluffy process -f document.txt --ollama-host http://192.168.1.100:11434
 ```
 
 This will:
+
 1. Chunk your text file by paragraphs
 2. Generate embeddings for each chunk using Nomic
 3. Create summaries for each chunk
@@ -130,8 +132,9 @@ bluffy serve document.db -p 3000
 ```
 
 The API provides these endpoints:
+
 - `GET /api/chunks` - All text chunks with embeddings
-- `GET /api/similarities` - All similarity calculations  
+- `GET /api/similarities` - All similarity calculations
 - `GET /api/graph?min_similarity=0.7` - Graph data for visualization
 
 ## Web Visualization
@@ -139,11 +142,13 @@ The API provides these endpoints:
 BLUFfy includes a React-based web visualizer in the `examples/visualizer/` directory that creates interactive D3.js force graphs:
 
 1. Start the API server:
+
    ```bash
    bluffy serve your-document.db
    ```
 
 2. In another terminal, start the web app:
+
    ```bash
    cd examples/visualizer
    npm install
@@ -153,6 +158,7 @@ BLUFfy includes a React-based web visualizer in the `examples/visualizer/` direc
 3. Open http://localhost:3000 to explore your text relationships visually
 
 The visualization allows you to:
+
 - Adjust similarity thresholds with a slider
 - See connections between related text chunks
 - Click on nodes to view the full text
@@ -161,18 +167,21 @@ The visualization allows you to:
 ## Command Options
 
 ### Process Command
+
 - `-f, --file`: Input text file (.txt or .md) **(required)**
 - `-o, --output`: Output directory for SQLite database (default: current directory)
 - `-w, --workers`: Number of concurrent workers (default: number of CPUs)
 - `--ollama-host`: Ollama server URL (default: http://localhost:11434)
 
-### Serve Command  
+### Serve Command
+
 - `-p, --port`: Server port (default: 8080)
 
 ## Development
 
 BLUFfy is built with:
+
 - **Go 1.21+** for the CLI and API server
-- **SQLite** for data storage  
+- **SQLite** for data storage
 - **Ollama** with Nomic embeddings for AI processing
 - **React + D3.js** for web visualization
