@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/simsies/blog/cli/pkg/database"
+	"github.com/jcpsimmons/bluffy/pkg/database"
 )
 
 type OllamaClient struct {

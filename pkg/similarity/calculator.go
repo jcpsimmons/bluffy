@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/simsies/blog/cli/pkg/database"
+	"github.com/jcpsimmons/bluffy/pkg/database"
 )
 
 func CosineSimilarity(a, b []float64) (float64, error) {

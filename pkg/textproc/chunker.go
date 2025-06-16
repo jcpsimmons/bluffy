@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/simsies/blog/cli/pkg/database"
+	"github.com/jcpsimmons/bluffy/pkg/database"
 	"github.com/tmc/langchaingo/textsplitter"
 )
 

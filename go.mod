@@ -1,4 +1,4 @@
-module github.com/simsies/blog/cli
+module github.com/jcpsimmons/bluffy
 
 go 1.23.0
 

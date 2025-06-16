@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/simsies/blog/cli/pkg/database"
-	"github.com/simsies/blog/cli/pkg/embedding"
-	"github.com/simsies/blog/cli/pkg/similarity"
-	"github.com/simsies/blog/cli/pkg/textproc"
+	"github.com/jcpsimmons/bluffy/pkg/database"
+	"github.com/jcpsimmons/bluffy/pkg/embedding"
+	"github.com/jcpsimmons/bluffy/pkg/similarity"
+	"github.com/jcpsimmons/bluffy/pkg/textproc"
 	"github.com/spf13/cobra"
 )
 
