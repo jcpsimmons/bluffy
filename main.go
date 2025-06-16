@@ -18,7 +18,7 @@ import (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "embed-cli",
+		Use:   "bluffy",
 		Short: "Generate embeddings for text chunks using Nomic on Ollama",
 		Long:  "A CLI tool that processes text files, chunks them by paragraphs, and generates embeddings using Nomic running on Ollama locally.",
 	}
